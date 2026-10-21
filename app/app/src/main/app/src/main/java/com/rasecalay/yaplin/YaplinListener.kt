@@ -1,5 +1,8 @@
 package com.rasecalay.yaplin
 
+import android.media.AudioAttributes
+import android.os.Build
+import android.os.Bundle
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.speech.tts.TextToSpeech
@@ -13,16 +16,35 @@ class YaplinListener : NotificationListenerService(), TextToSpeech.OnInitListene
 
     override fun onCreate() {
         super.onCreate()
-        tts = TextToSpeech(this, this)
+        iniciarTTS()
+    }
+
+    private fun iniciarTTS() {
+        try {
+            tts = TextToSpeech(applicationContext, this)
+        } catch (e: Exception) {
+            Log.e("Yaplin", "Error al crear TextToSpeech", e)
+        }
     }
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
-            val result = tts?.setLanguage(Locale("es", "ES"))
-            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                tts?.language = Locale.getDefault()
+            // Compatibilidad de canal de audio para celulares modernos y antiguos
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                val attrs = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+                tts?.setAudioAttributes(attrs)
+            }
+
+            val resultado = tts?.setLanguage(Locale("es", "PE"))
+            if (resultado == TextToSpeech.LANG_MISSING_DATA || resultado == TextToSpeech.LANG_NOT_SUPPORTED) {
+                tts?.language = Locale("es", "ES")
             }
             isTtsReady = true
+        } else {
+            isTtsReady = false
         }
     }
 
@@ -30,52 +52,70 @@ class YaplinListener : NotificationListenerService(), TextToSpeech.OnInitListene
         super.onNotificationPosted(sbn)
         if (sbn == null) return
 
-        val packageName = sbn.packageName ?: ""
-        val extras = sbn.notification.extras
-        val title = extras.getString("android.title") ?: ""
-        val text = extras.getCharSequence("android.text")?.toString() ?: ""
+        val paquete = sbn.packageName?.lowercase(Locale.ROOT) ?: ""
+        val extras: Bundle = sbn.notification.extras ?: Bundle()
 
-        // Revisamos si proviene de Yape o Plin (o si el texto menciona pago/yape)
-        val esYapeOPlin = packageName.contains("yape", ignoreCase = true) ||
-                          packageName.contains("plin", ignoreCase = true) ||
-                          title.contains("Yape", ignoreCase = true) ||
-                          title.contains("Confirmación de Pago", ignoreCase = true)
+        // Leer todos los campos posibles de la notificación
+        val titulo = extras.getString("android.title") ?: ""
+        val textoSimple = extras.getCharSequence("android.text")?.toString() ?: ""
+        val textoGrande = extras.getCharSequence("android.bigText")?.toString() ?: ""
+
+        val cuerpoAlerta = if (textoGrande.isNotEmpty()) textoGrande else textoSimple
+        val textoCompleto = "$titulo $cuerpoAlerta".trim()
+
+        // Filtro universal para Yape, Plin o mensajes de confirmación de pago
+        val esYapeOPlin = paquete.contains("yape") ||
+                         paquete.contains("plin") ||
+                         titulo.contains("Confirmación de Pago", ignoreCase = true) ||
+                         textoCompleto.contains("Confirmación de Pago", ignoreCase = true) ||
+                         textoCompleto.contains("te envió un pago", ignoreCase = true) ||
+                         textoCompleto.contains("te yapeó", ignoreCase = true)
 
         if (!esYapeOPlin) return
 
-        var mensajeVoz = ""
+        var fraseVoz = ""
 
-        // Formato actual: "Hermelinda Tic* te envió un pago por S/ 0.5. El cód. de seguridad es: 425"
-        if (text.contains("te envió un pago por", ignoreCase = true)) {
-            val regex = Regex("""(.*?) te envió un pago por (S/\s*[\d.]+)""")
-            val match = regex.find(text)
-            if (match != null) {
-                val nombre = match.groupValues[1].replace("*", "").trim()
-                val monto = match.groupValues[2].replace("S/", "soles").trim()
-                mensajeVoz = "Pago recibido de $nombre por $monto"
-            } else {
-                val parteLimpia = text.split(".")[0].replace("*", "")
-                mensajeVoz = parteLimpia
-            }
-        } else if (text.contains("te yapeó", ignoreCase = true) || text.contains("yape", ignoreCase = true)) {
-            mensajeVoz = text.replace("*", "")
+        // Reconocer: "Hermelinda Tic* te envió un pago por S/ 0.5..."
+        val regex = Regex("""(.*?) te envió un pago por (S/\s*[\d.]+)""", RegexOption.IGNORE_CASE)
+        val match = regex.find(cuerpoAlerta)
+
+        if (match != null) {
+            val remitente = match.groupValues[1].replace("*", "").trim()
+            val monto = match.groupValues[2].replace("S/", "soles").trim()
+            fraseVoz = "Pago recibido de $remitente por $monto"
+        } else if (cuerpoAlerta.contains("te yapeó", ignoreCase = true)) {
+            fraseVoz = cuerpoAlerta.replace("*", "").trim()
+        } else if (cuerpoAlerta.isNotEmpty()) {
+            val fraseCorta = cuerpoAlerta.split(".")[0].replace("*", "").trim()
+            fraseVoz = "Yape: $fraseCorta"
         }
 
-        // Si se detectó el pago, activar la voz
-        if (mensajeVoz.isNotEmpty()) {
-            hablar(mensajeVoz)
+        if (fraseVoz.isNotEmpty()) {
+            hablar(fraseVoz)
         }
     }
 
     private fun hablar(mensaje: String) {
         if (isTtsReady && tts != null) {
-            tts?.speak(mensaje, TextToSpeech.QUEUE_FLUSH, null, "yaplin_alert")
+            tts?.speak(mensaje, TextToSpeech.QUEUE_FLUSH, null, "yaplin_alerta")
+        } else {
+            // Si el motor estaba dormido, lo reactiva y habla de inmediato
+            tts = TextToSpeech(applicationContext) { estado ->
+                if (estado == TextToSpeech.SUCCESS) {
+                    isTtsReady = true
+                    tts?.speak(mensaje, TextToSpeech.QUEUE_FLUSH, null, "yaplin_alerta")
+                }
+            }
         }
     }
 
     override fun onDestroy() {
-        tts?.stop()
-        tts?.shutdown()
+        try {
+            tts?.stop()
+            tts?.shutdown()
+        } catch (e: Exception) {
+            Log.e("Yaplin", "Error al cerrar", e)
+        }
         super.onDestroy()
     }
 }
