@@ -1,6 +1,7 @@
 package com.rasecalay.yaplin
 
 import android.content.Context
+import android.content.Intent
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.os.Build
@@ -10,6 +11,9 @@ import android.os.VibratorManager
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.regex.Pattern
 
 class YaplinListener : NotificationListenerService() {
@@ -42,6 +46,7 @@ class YaplinListener : NotificationListenerService() {
         val text = extras.getCharSequence("android.text")?.toString() ?: ""
         val fullContent = "$title $text"
 
+        // Extraer el monto en soles
         val pattern = Pattern.compile("(?i)S\\/?\\.?\\s*(\\d+(?:[.,]\\d{1,2})?)")
         val matcher = pattern.matcher(fullContent)
 
@@ -51,14 +56,26 @@ class YaplinListener : NotificationListenerService() {
 
             if (amountValue > 0.0) {
                 vibrateAlert()
-                playAmountSequence(amountValue)
+                playAmountSequence(amountValue, isYape)
+
+                // Enviar broadcast a MainActivity para actualizar la tarjeta de último pago
+                val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
+                val currentTime = timeFormat.format(Date())
+
+                val broadcastIntent = Intent("com.rasecalay.yaplin.NUEVO_PAGO").apply {
+                    setPackage(packageName)
+                    putExtra("service", if (isYape) "Yape" else "Plin")
+                    putExtra("amount", String.format(Locale.US, "%.2f", amountValue))
+                    putExtra("time", currentTime)
+                }
+                sendBroadcast(broadcastIntent)
             }
         }
     }
 
-    private fun playAmountSequence(amount: Double) {
+    private fun playAmountSequence(amount: Double, isYape: Boolean) {
         stopPlayback()
-        currentPlaylist = AudioAmountBuilder.buildAudioPlaylist(amount)
+        currentPlaylist = AudioAmountBuilder.buildAudioPlaylist(amount, isYape)
         playlistIndex = 0
         playNextTrack()
     }
