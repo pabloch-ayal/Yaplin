@@ -1,8 +1,10 @@
 package com.rasecalay.yaplin
 
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.net.Uri
@@ -17,31 +19,48 @@ import androidx.appcompat.app.AppCompatActivity
 class MainActivity : AppCompatActivity() {
 
     private var testPlayer: MediaPlayer? = null
+    private var paymentReceiver: BroadcastReceiver? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val tvStatusBadge = findViewById<TextView>(R.id.tvStatusBadge)
-        val tvStatusSub = findViewById<TextView>(R.id.tvStatusSub)
-        val btnPermissions = findViewById<Button>(R.id.btnPermissions)
         val btnTestAudio = findViewById<Button>(R.id.btnTestAudio)
         val btnBatterySettings = findViewById<Button>(R.id.btnBatterySettings)
+        val tvStatusBadge = findViewById<TextView>(R.id.tvStatusBadge)
 
-        // 1. Abrir ajustes de permisos de notificación
-        btnPermissions.setOnClickListener {
-            val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-            startActivity(intent)
+        // Tocar el badge abre permisos si están apagados
+        tvStatusBadge.setOnClickListener {
+            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
 
-        // 2. Probar sonido de Yape (S/ 10.00)
+        // Botón de prueba de sonido
         btnTestAudio.setOnClickListener {
             playTestSequence()
         }
 
-        // 3. Ajustes de batería sin restricciones
+        // Botón de ajustes de batería y permisos
         btnBatterySettings.setOnClickListener {
             openBatterySettings()
+        }
+
+        // Receptor para mostrar el último pago en pantalla
+        paymentReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                val service = intent?.getStringExtra("service") ?: "Pago"
+                val amount = intent?.getStringExtra("amount") ?: "0.00"
+                val time = intent?.getStringExtra("time") ?: ""
+
+                findViewById<TextView>(R.id.tvLastAmount).text = "S/ $amount"
+                findViewById<TextView>(R.id.tvLastServiceDetail).text = "$service • $time"
+            }
+        }
+
+        val filter = IntentFilter("com.rasecalay.yaplin.NUEVO_PAGO")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(paymentReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(paymentReceiver, filter)
         }
     }
 
@@ -56,15 +75,15 @@ class MainActivity : AppCompatActivity() {
         val hasPermission = isNotificationServiceEnabled()
 
         if (hasPermission) {
-            tvStatusBadge.text = "● Servicio ACTIVO"
+            tvStatusBadge.text = "● ESTADO: ACTIVO"
             tvStatusBadge.setTextColor(android.graphics.Color.parseColor("#2E7D32"))
             tvStatusBadge.setBackgroundColor(android.graphics.Color.parseColor("#E8F5E9"))
-            tvStatusSub.text = "Escuchando notificaciones en segundo plano"
+            tvStatusSub.text = "Escuchando pagos en segundo plano"
         } else {
-            tvStatusBadge.text = "● Servicio DETENIDO"
+            tvStatusBadge.text = "● ESTADO: INACTIVO (Toca aquí)"
             tvStatusBadge.setTextColor(android.graphics.Color.parseColor("#C62828"))
             tvStatusBadge.setBackgroundColor(android.graphics.Color.parseColor("#FFEBEE"))
-            tvStatusSub.text = "Falta conceder permiso de lectura de notificaciones"
+            tvStatusSub.text = "Toca para conceder permiso de notificaciones"
         }
     }
 
@@ -78,7 +97,7 @@ class MainActivity : AppCompatActivity() {
         testPlayer?.release()
         testPlayer = null
 
-        val playlist = AudioAmountBuilder.buildAudioPlaylist(10.0, isYape = true)
+        val playlist = AudioAmountBuilder.buildAudioPlaylist(12.0, isYape = true)
         var index = 0
 
         fun playNext() {
@@ -144,6 +163,7 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         testPlayer?.release()
         testPlayer = null
+        paymentReceiver?.let { unregisterReceiver(it) }
         super.onDestroy()
     }
 }
