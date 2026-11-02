@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#F5F6FA"
@@ -32,99 +31,89 @@
             android:layout_gravity="center_horizontal"
             android:layout_marginBottom="24dp" />
 
-        <!-- Tarjeta de Estado del Servicio -->
-        <androidx.cardview.widget.CardView
+        <!-- Panel de Estado del Servicio -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="3dp"
-            app:cardBackgroundColor="#FFFFFF"
+            android:orientation="vertical"
+            android:background="#FFFFFF"
+            android:padding="20dp"
+            android:gravity="center"
+            android:elevation="4dp"
             android:layout_marginBottom="16dp">
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <TextView
+                android:id="@+id/tvStatusBadge"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="20dp"
-                android:gravity="center">
+                android:text="● Servicio ACTIVO"
+                android:textColor="#2E7D32"
+                android:textStyle="bold"
+                android:textSize="14sp"
+                android:background="#E8F5E9"
+                android:paddingLeft="14dp"
+                android:paddingRight="14dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp" />
 
-                <TextView
-                    android:id="@+id/tvStatusBadge"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="● Servicio ACTIVO"
-                    android:textColor="#2E7D32"
-                    android:textStyle="bold"
-                    android:textSize="14sp"
-                    android:background="#E8F5E9"
-                    android:paddingHorizontal="14dp"
-                    android:paddingVertical="6dp" />
+            <TextView
+                android:id="@+id/tvStatusSub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Escuchando notificaciones en segundo plano"
+                android:textColor="#555555"
+                android:textSize="13sp"
+                android:layout_marginTop="10dp" />
 
-                <TextView
-                    android:id="@+id/tvStatusSub"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Escuchando notificaciones en segundo plano"
-                    android:textColor="#555555"
-                    android:textSize="13sp"
-                    android:layout_marginTop="10dp" />
+            <Button
+                android:id="@+id/btnPermissions"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:text="Permisos de Notificación"
+                android:layout_marginTop="16dp"
+                android:backgroundTint="#5E17EB"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold" />
+        </LinearLayout>
 
-                <Button
-                    android:id="@+id/btnPermissions"
-                    android:layout_width="match_parent"
-                    android:layout_height="52dp"
-                    android:text="Permisos de Notificación"
-                    android:layout_marginTop="16dp"
-                    android:backgroundTint="#5E17EB"
-                    android:textColor="#FFFFFF"
-                    android:textStyle="bold" />
-            </LinearLayout>
-        </androidx.cardview.widget.CardView>
-
-        <!-- Tarjeta de Información y Prueba -->
-        <androidx.cardview.widget.CardView
+        <!-- Panel de Calibración de Audio -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="3dp"
-            app:cardBackgroundColor="#FFFFFF"
+            android:orientation="vertical"
+            android:background="#FFFFFF"
+            android:padding="20dp"
+            android:elevation="4dp"
             android:layout_marginBottom="16dp">
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="20dp">
+                android:text="Calibración de Audio"
+                android:textStyle="bold"
+                android:textColor="#222222"
+                android:textSize="16sp" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Calibración de Audio"
-                    android:textStyle="bold"
-                    android:textColor="#222222"
-                    android:textSize="16sp" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Prueba el volumen antes de iniciar tu jornada."
+                android:textColor="#777777"
+                android:textSize="13sp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="16dp" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Prueba el volumen antes de iniciar tu jornada."
-                    android:textColor="#777777"
-                    android:textSize="13sp"
-                    android:layout_marginTop="4dp"
-                    android:layout_marginBottom="16dp" />
+            <Button
+                android:id="@+id/btnTestAudio"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:text="▶ Probar sonido (Yape S/ 10)"
+                android:backgroundTint="#EDE7F6"
+                android:textColor="#5E17EB"
+                android:textStyle="bold" />
+        </LinearLayout>
 
-                <Button
-                    android:id="@+id/btnTestAudio"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:text="▶ Probar sonido (Yape S/ 10)"
-                    android:backgroundTint="#EDE7F6"
-                    android:textColor="#5E17EB"
-                    android:textStyle="bold" />
-            </LinearLayout>
-        </androidx.cardview.widget.CardView>
-
-        <!-- Botón para Ajustes de Batería (Xiaomi / MIUI) -->
+        <!-- Botón para Ajustes de Batería -->
         <Button
             android:id="@+id/btnBatterySettings"
             android:layout_width="match_parent"
