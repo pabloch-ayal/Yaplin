@@ -89,7 +89,7 @@ class MainActivity : AppCompatActivity() {
         testPlayer?.release()
         testPlayer = null
 
-        val playlist = AudioAmountBuilder.buildAudioPlaylist(12.0, isYape = true)
+        val playlist = AudioAmountBuilder.buildAudioPlaylist(this, 12.0, isYape = true)
         var index = 0
 
         fun playNext() {
@@ -122,6 +122,7 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 testPlayer?.release()
                 testPlayer = null
+                playNext()
             }
         }
 
@@ -158,7 +159,7 @@ class MainActivity : AppCompatActivity() {
         try {
             paymentReceiver?.let { unregisterReceiver(it) }
         } catch (e: Exception) {
-            // Ignorar si ya estaba desregistrado
+            // Ignorar si no estaba registrado
         }
         super.onDestroy()
     }
