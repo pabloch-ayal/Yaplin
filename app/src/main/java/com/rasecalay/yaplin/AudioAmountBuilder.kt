@@ -1,0 +1,97 @@
+package com.rasecalay.yaplin
+
+object AudioAmountBuilder {
+
+    fun buildAudioPlaylist(amountDouble: Double): List<Int> {
+        val playlist = mutableListOf<Int>()
+
+        // Audio inicial
+        playlist.add(R.raw.audio_pago_recibido)
+
+        val entero = amountDouble.toInt()
+        val centavos = Math.round((amountDouble - entero) * 100).toInt()
+
+        if (entero > 0) {
+            playlist.addAll(resolveNumberToAudios(entero))
+            playlist.add(R.raw.audio_soles)
+        }
+
+        if (centavos > 0) {
+            playlist.add(R.raw.audio_con)
+            playlist.addAll(resolveNumberToAudios(centavos))
+            playlist.add(R.raw.audio_centimos)
+        }
+
+        return playlist
+    }
+
+    private fun resolveNumberToAudios(number: Int): List<Int> {
+        val list = mutableListOf<Int>()
+
+        if (number in 1..29) {
+            getDirectAudio(number)?.let { list.add(it) }
+            return list
+        }
+
+        if (number in 30..99) {
+            val decena = (number / 10) * 10
+            val unidad = number % 10
+
+            getDirectAudio(decena)?.let { list.add(it) }
+            if (unidad > 0) {
+                list.add(R.raw.audio_y)
+                getDirectAudio(unidad)?.let { list.add(it) }
+            }
+            return list
+        }
+
+        if (number == 100) {
+            list.add(R.raw.audio_100)
+            return list
+        }
+
+        return list
+    }
+
+    private fun getDirectAudio(num: Int): Int? {
+        return when (num) {
+            1 -> R.raw.audio_1
+            2 -> R.raw.audio_2
+            3 -> R.raw.audio_3
+            4 -> R.raw.audio_4
+            5 -> R.raw.audio_5
+            6 -> R.raw.audio_6
+            7 -> R.raw.audio_7
+            8 -> R.raw.audio_8
+            9 -> R.raw.audio_9
+            10 -> R.raw.audio_10
+            11 -> R.raw.audio_11
+            12 -> R.raw.audio_12
+            13 -> R.raw.audio_13
+            14 -> R.raw.audio_14
+            15 -> R.raw.audio_15
+            16 -> R.raw.audio_16
+            17 -> R.raw.audio_17
+            18 -> R.raw.audio_18
+            19 -> R.raw.audio_19
+            20 -> R.raw.audio_20
+            21 -> R.raw.audio_21
+            22 -> R.raw.audio_22
+            23 -> R.raw.audio_23
+            24 -> R.raw.audio_24
+            25 -> R.raw.audio_25
+            26 -> R.raw.audio_26
+            27 -> R.raw.audio_27
+            28 -> R.raw.audio_28
+            29 -> R.raw.audio_29
+            30 -> R.raw.audio_30
+            40 -> R.raw.audio_40
+            50 -> R.raw.audio_50
+            60 -> R.raw.audio_60
+            70 -> R.raw.audio_70
+            80 -> R.raw.audio_80
+            90 -> R.raw.audio_90
+            else -> null
+        }
+    }
+}
