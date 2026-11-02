@@ -1,95 +1,165 @@
 package com.rasecalay.yaplin
 
+import android.content.BroadcastReceiver
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
-import android.graphics.Color
-import android.graphics.Typeface
+import android.content.IntentFilter
+import android.media.AudioAttributes
+import android.media.MediaPlayer
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.provider.Settings
-import android.view.Gravity
 import android.widget.Button
-import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var txtEstado: TextView
+    private var testPlayer: MediaPlayer? = null
+    private var paymentReceiver: BroadcastReceiver? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
 
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(50, 50, 50, 50)
-            setBackgroundColor(Color.parseColor("#F5F6FA"))
+        val btnTestAudio = findViewById<Button>(R.id.btnTestAudio)
+        val btnBatterySettings = findViewById<Button>(R.id.btnBatterySettings)
+        val tvStatusBadge = findViewById<TextView>(R.id.tvStatusBadge)
+
+        tvStatusBadge.setOnClickListener {
+            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
 
-        val txtTitulo = TextView(this).apply {
-            text = "Yaplin"
-            textSize = 36f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.parseColor("#5A189A"))
-            gravity = Gravity.CENTER
+        btnTestAudio.setOnClickListener {
+            playTestSequence()
         }
 
-        val txtSubtitulo = TextView(this).apply {
-            text = "Avisos de cobro por voz (Yape y Plin)\n"
-            textSize = 15f
-            setTextColor(Color.DKGRAY)
-            gravity = Gravity.CENTER
+        btnBatterySettings.setOnClickListener {
+            openBatterySettings()
         }
 
-        txtEstado = TextView(this).apply {
-            textSize = 16f
-            gravity = Gravity.CENTER
-            setPadding(0, 30, 0, 40)
-        }
+        paymentReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                val service = intent?.getStringExtra("service") ?: "Pago"
+                val amount = intent?.getStringExtra("amount") ?: "0.00"
+                val time = intent?.getStringExtra("time") ?: ""
 
-        val btnPermiso = Button(this).apply {
-            text = "Activar avisos de cobro"
-            setBackgroundColor(Color.parseColor("#5A189A"))
-            setTextColor(Color.WHITE)
-            textSize = 16f
-            setPadding(40, 25, 40, 25)
-            setOnClickListener {
-                startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                findViewById<TextView>(R.id.tvLastAmount)?.text = "S/ $amount"
+                findViewById<TextView>(R.id.tvLastServiceDetail)?.text = "$service • $time"
             }
         }
 
-        val txtCreditos = TextView(this).apply {
-            text = "\n\n\nCreado por: rasec-alay\nVersión 1.0"
-            textSize = 13f
-            setTextColor(Color.GRAY)
-            gravity = Gravity.CENTER
-        }
-
-        layout.addView(txtTitulo)
-        layout.addView(txtSubtitulo)
-        layout.addView(txtEstado)
-        layout.addView(btnPermiso)
-        layout.addView(txtCreditos)
-
-        setContentView(layout)
+        val filter = IntentFilter("com.rasecalay.yaplin.NUEVO_PAGO")
+        registerReceiver(paymentReceiver, filter)
     }
 
     override fun onResume() {
         super.onResume()
-        verificarPermiso()
+        updatePermissionStatus()
     }
 
-    private fun verificarPermiso() {
-        val listeners = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
-        val miComponente = ComponentName(this, YaplinListener::class.java).flattenToString()
-        val activo = listeners != null && listeners.contains(miComponente)
+    private fun updatePermissionStatus() {
+        val tvStatusBadge = findViewById<TextView>(R.id.tvStatusBadge)
+        val tvStatusSub = findViewById<TextView>(R.id.tvStatusSub)
+        val hasPermission = isNotificationServiceEnabled()
 
-        if (activo) {
-            txtEstado.text = "✅ Servicio ACTIVO\nEscuchando pagos de Yape y Plin"
-            txtEstado.setTextColor(Color.parseColor("#2E7D32"))
+        if (hasPermission) {
+            tvStatusBadge.text = "● ESTADO: ACTIVO"
+            tvStatusBadge.setTextColor(android.graphics.Color.parseColor("#2E7D32"))
+            tvStatusBadge.setBackgroundColor(android.graphics.Color.parseColor("#E8F5E9"))
+            tvStatusSub.text = "Escuchando pagos en segundo plano"
         } else {
-            txtEstado.text = "⚠️ Servicio apagado\nPresiona el botón para activarlo"
-            txtEstado.setTextColor(Color.parseColor("#C62828"))
+            tvStatusBadge.text = "● ESTADO: INACTIVO (Toca aquí)"
+            tvStatusBadge.setTextColor(android.graphics.Color.parseColor("#C62828"))
+            tvStatusBadge.setBackgroundColor(android.graphics.Color.parseColor("#FFEBEE"))
+            tvStatusSub.text = "Toca para conceder permiso de notificaciones"
         }
+    }
+
+    private fun isNotificationServiceEnabled(): Boolean {
+        val cn = ComponentName(this, YaplinListener::class.java)
+        val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
+        return flat != null && flat.contains(cn.flattenToString())
+    }
+
+    private fun playTestSequence() {
+        testPlayer?.release()
+        testPlayer = null
+
+        val playlist = AudioAmountBuilder.buildAudioPlaylist(12.0, isYape = true)
+        var index = 0
+
+        fun playNext() {
+            if (index >= playlist.size) {
+                testPlayer?.release()
+                testPlayer = null
+                return
+            }
+
+            val resId = playlist[index++]
+            try {
+                testPlayer = MediaPlayer().apply {
+                    setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .setUsage(AudioAttributes.USAGE_ALARM)
+                            .build()
+                    )
+                    val afd = resources.openRawResourceFd(resId)
+                    setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                    afd.close()
+                    prepare()
+                    start()
+                    setOnCompletionListener {
+                        it.release()
+                        testPlayer = null
+                        playNext()
+                    }
+                }
+            } catch (e: Exception) {
+                testPlayer?.release()
+                testPlayer = null
+            }
+        }
+
+        playNext()
+    }
+
+    private fun openBatterySettings() {
+        try {
+            val intent = Intent()
+            val packageName = packageName
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                    intent.action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                    intent.data = Uri.parse("package:$packageName")
+                } else {
+                    intent.action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                    intent.data = Uri.parse("package:$packageName")
+                }
+            } else {
+                intent.action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                intent.data = Uri.parse("package:$packageName")
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            val fallback = Intent(Settings.ACTION_SETTINGS)
+            startActivity(fallback)
+        }
+    }
+
+    override fun onDestroy() {
+        testPlayer?.release()
+        testPlayer = null
+        try {
+            paymentReceiver?.let { unregisterReceiver(it) }
+        } catch (e: Exception) {
+            // Ignorar si ya estaba desregistrado
+        }
+        super.onDestroy()
     }
 }
