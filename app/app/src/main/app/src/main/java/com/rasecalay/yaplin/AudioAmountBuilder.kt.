@@ -2,20 +2,26 @@ package com.rasecalay.yaplin
 
 object AudioAmountBuilder {
 
-    fun buildAudioPlaylist(amountDouble: Double): List<Int> {
+    fun buildAudioPlaylist(amountDouble: Double, isYape: Boolean): List<Int> {
         val playlist = mutableListOf<Int>()
 
-        // Audio inicial: "Pago recibido de"
-        playlist.add(R.raw.audio_pago_recibido)
+        // 1. Audio de inicio: Yape o Plin
+        if (isYape) {
+            playlist.add(R.raw.audio_yape)
+        } else {
+            playlist.add(R.raw.audio_plin)
+        }
 
         val entero = amountDouble.toInt()
         val centavos = Math.round((amountDouble - entero) * 100).toInt()
 
+        // 2. Cantidad en soles
         if (entero > 0) {
             playlist.addAll(resolveNumberToAudios(entero))
             playlist.add(R.raw.audio_soles)
         }
 
+        // 3. Céntimos si aplica
         if (centavos > 0) {
             playlist.add(R.raw.audio_con)
             playlist.addAll(resolveNumberToAudios(centavos))
